@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+    <title>Squares</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+
+        #n-form {
+            margin-bottom: 20px;
+        }
+
+        #n-form input,
+        #n-form button {
+            padding: 6px 10px;
+            font-size: 14px;
+            margin: 5px;
+        }
+
+        #matrix-container {
+            margin-top: 20px;
+        }
+
+        #read-button {
+            margin-top: 20px;
+            padding: 8px 15px;
+            font-size: 15px;
+        }
+
+        #error-message {
+            margin-top: 15px;
+            font-size: 16px;
+            text-align: center;
+            padding: 8px;
+        }
+    </style>
+</head>
+
+
+<body>
+
+    <div>
+        <form id="n-form">
+            <input type="number" min="2" max="3" id="n-value">
+            <button id="n-button" type="submit">Submit</button>
+            <button id="reset-button">Reset</button>
+        </form>
+    </div>
+
+    <div id="matrix-container">
+
+
+    </div>
+    <button id="read-button" hidden>Read Matrix</button>
+    <div id="error-message"></div>
+
+</body>
+
+</html>
+
+<script>
+
+    function solve(row, col, matrix, symbols, rowsConflict, colsConflict, boxesConflict, N, n) {
+        if (row === N) return true;
+
+        const nextRow = (col === N - 1) ? row + 1 : row;
+        const nextCol = (col === N - 1) ? 0 : col + 1;
+
+        if (matrix[row][col] !== "0") {
+            return solve(nextRow, nextCol, matrix, symbols, rowsConflict, colsConflict, boxesConflict, N, n);
+        }
+
+        const boxRow = Math.floor(row / n);
+        const boxCol = Math.floor(col / n);
+        const boxIndex = boxRow * n + boxCol;
+
+        for (const sym of symbols) {
+
+            if (!rowsConflict[row].has(sym) && !colsConflict[col].has(sym) && !boxesConflict[boxIndex].has(sym)) {
+
+                matrix[row][col] = sym;
+                rowsConflict[row].add(sym);
+                colsConflict[col].add(sym);
+                boxesConflict[boxIndex].add(sym);
+
+                if (solve(nextRow, nextCol, matrix, symbols, rowsConflict, colsConflict, boxesConflict, N, n)) {
+                    return true;
+                }
+
+                matrix[row][col] = "0";
+                rowsConflict[row].delete(sym);
+                colsConflict[col].delete(sym);
+                boxesConflict[boxIndex].delete(sym);
+            }
+        }
+
+        return false;
+    }
+
+    function runSolver(n, matrix) {
+        const N = n * n;
+
+        const symbols = new Set();
+        for (let r = 0; r < N; r++) {
+            for (let c = 0; c < N; c++) {
+                if (matrix[r][c] !== "0") {
+                    symbols.add(matrix[r][c]);
+                }
+            }
+        }
+
+        const rowsConflict = Array.from({ length: N }, () => new Set());
+        const colsConflict = Array.from({ length: N }, () => new Set());
+        const boxesConflict = Array.from({ length: N }, () => new Set());
+
+        for (let r = 0; r < N; r++) {
+            for (let c = 0; c < N; c++) {
+                const sym = matrix[r][c];
+                if (sym !== "0") {
+                    const boxR = Math.floor(r / n);
+                    const boxC = Math.floor(c / n);
+                    const boxIndex = boxR * n + boxC;
+
+                    rowsConflict[r].add(sym);
+                    colsConflict[c].add(sym);
+                    boxesConflict[boxIndex].add(sym);
+                }
+            }
+        }
+
+        if (solve(0, 0, matrix, symbols, rowsConflict, colsConflict, boxesConflict, N, n)) {
+            return matrix;
+        } else {
+            return null;
+        }
+    }
+
+
+    document.getElementById("n-form").addEventListener("submit", function (e) {
+        e.preventDefault();
+
+        document.getElementById('error-message').innerHTML = '';
+        const n = parseInt(document.getElementById("n-value").value);
+
+        const N = n * n;
+
+        const container = document.getElementById("matrix-container");
+        container.innerHTML = "";
+
+        const table = document.createElement("table");
+        table.style.borderCollapse = "collapse";
+
+        for (let r = 0; r < N; r++) {
+            const row = document.createElement("tr");
+
+            for (let c = 0; c < N; c++) {
+                const cell = document.createElement("td");
+
+                cell.style.border = "1px solid #666";
+                cell.style.padding = "0";
+
+                if (r % n === 0) cell.style.borderTop = "3px solid black";
+                if (c % n === 0) cell.style.borderLeft = "3px solid black";
+                if (r === N - 1) cell.style.borderBottom = "3px solid black";
+                if (c === N - 1) cell.style.borderRight = "3px solid black";
+
+                const input = document.createElement("input");
+                input.type = "text";
+                input.style.width = "40px";
+                input.style.height = "40px";
+                input.style.textAlign = "center";
+                input.style.fontSize = "18px";
+                input.style.border = "none";
+                input.style.outline = "none";
+
+                cell.appendChild(input);
+                row.appendChild(cell);
+            }
+
+            table.appendChild(row);
+        }
+
+        container.appendChild(table);
+        document.getElementById("read-button").hidden = false;
+    });
+
+    document.getElementById("read-button").addEventListener("click", function () {
+        const table = document.querySelector("#matrix-container table");
+        if (!table) return;
+
+        const rows = table.querySelectorAll("tr");
+        const matrix = [];
+
+        rows.forEach(row => {
+            const cells = row.querySelectorAll("input");
+            const rowData = [];
+
+            cells.forEach(cell => {
+                const value = cell.value.trim();
+                rowData.push(value === "" ? "0" : value);
+            });
+
+            matrix.push(rowData);
+        });
+
+        const n = parseInt(document.getElementById("n-value").value);
+        solution = runSolver(n, matrix);
+
+        if (!solution) {
+            err = document.getElementById('error-message');
+            err.innerHTML = 'Not valid!'
+            err.style.color = '#b00020';
+            err.style.fontWeight = 'bold';
+            return;
+        }
+
+        rows.forEach((row, r) => {
+            const cells = row.querySelectorAll("input");
+            cells.forEach((cell, c) => {
+                cell.value = solution[r][c];
+            });
+        });
+    });
+
+    document.getElementById('reset-button').addEventListener('click', (e) => {
+        e.preventDefault()
+        const container = document.getElementById("matrix-container");
+        container.innerHTML = "";
+        document.getElementById("read-button").hidden = true;
+        document.getElementById('error-message').innerHTML = '';
+    })
+
+</script>
